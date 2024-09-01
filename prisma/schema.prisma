@@ -1,0 +1,121 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mongodb"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  id                     String          @id @default(auto()) @map("_id") @db.ObjectId
+  email                  String          @unique
+  password               String
+  username               String
+  profileImage           String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  posts                  Post[]
+  comments               Comment[]
+  likes                  Like[]
+  sentFriendRequests     FriendRequest[] @relation("SentRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedRequests")
+  friendships            Friendship[]    @relation("UserFriendships")
+  friends                Friendship[]    @relation("FriendFriendships")
+  messagesSent           Message[]       @relation("MessagesSent")
+  messagesReceived       Message[]       @relation("MessagesReceived")
+  conversationsInitiated Conversation[]  @relation("UserOne")
+  conversationsReceived  Conversation[]  @relation("UserTwo")
+}
+
+model Post {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  imageUrl  String?
+  authorId  String    @db.ObjectId
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  author    User      @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+  likes     Like[]
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  postId    String   @db.ObjectId
+  authorId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id])
+}
+
+model Like {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  postId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model FriendRequest {
+  id         String              @id @default(auto()) @map("_id") @db.ObjectId
+  senderId   String              @db.ObjectId
+  receiverId String              @db.ObjectId
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  sender     User                @relation("SentRequests", fields: [senderId], references: [id])
+  receiver   User                @relation("ReceivedRequests", fields: [receiverId], references: [id])
+}
+
+model Friendship {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  friendId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  user   User @relation("UserFriendships", fields: [userId], references: [id])
+  friend User @relation("FriendFriendships", fields: [friendId], references: [id])
+}
+
+model Conversation {
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  userOneId               String    @db.ObjectId
+  userTwoId               String    @db.ObjectId
+  unreadMessageCountUser1 Int       @default(0)
+  unreadMessageCountUser2 Int       @default(0)
+  lastMessage             String
+  lastMessageAt           DateTime
+  createdAt               DateTime  @default(now())
+  messages                Message[]
+
+  userOne User @relation("UserOne", fields: [userOneId], references: [id])
+  userTwo User @relation("UserTwo", fields: [userTwoId], references: [id])
+}
+
+model Message {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  content        String
+  senderId       String       @db.ObjectId
+  receiverId     String       @db.ObjectId
+  conversationId String       @db.ObjectId
+  createdAt      DateTime     @default(now())
+  sender         User         @relation("MessagesSent", fields: [senderId], references: [id])
+  receiver       User         @relation("MessagesReceived", fields: [receiverId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
